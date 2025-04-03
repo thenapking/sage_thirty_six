@@ -71,7 +71,7 @@ let testShader;
 let debugProgram;
 let debugVAO;
 let fadeProgram;
-
+let depositProgram;
 
 let t = 0;
 
@@ -107,6 +107,9 @@ function setup() {
 
   renderParticles = create_program(renderVSource, renderFSource);
 
+  depositProgram = create_program(depositVSource, depositFSource, null);
+
+
   setup_vaos()
   initialize_buffers();
 
@@ -138,14 +141,14 @@ function draw() {
   background(0);
 
   updateParticlesHelper();
-
+  depositParticlesHelper()
   drawTestParticles(numParticles);
-  applyBlur(renderSize, 0.95) 
+  // applyBlur(renderSize, presetArray[15]) 
   applyClearFade()
 
   drawTestOffscreenTexture()
 
-  drawDebugParticle()
+  // drawDebugParticle()
 
 
   if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) {

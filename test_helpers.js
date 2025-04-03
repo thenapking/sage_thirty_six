@@ -208,7 +208,7 @@ function applyClearFade() {
   // Set the uniform clearOpacity. We assume presetArray[18] holds the normalized value.
   let clearOpacityLoc = gl.getUniformLocation(clearProgram, "clearOpacity");
   if(clearOpacityLoc !== null){
-    gl.uniform1f(clearOpacityLoc, 0.1);
+    gl.uniform1f(clearOpacityLoc, presetArray[18]);
   }
   
   // Bind the framebuffer and attach screenTexture as the render target.
@@ -230,6 +230,38 @@ function applyClearFade() {
   // Unbind the framebuffer so that subsequent drawing goes to the default framebuffer.
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 }
+
+
+function depositParticlesHelper() {
+  gl.useProgram(depositProgram);
+  
+  // Set the uniform array 'v' to your preset values.
+  let vLoc = gl.getUniformLocation(depositProgram, "v");
+  gl.uniform1fv(vLoc, presetArray);
+  
+  // Set the deposit flag to 1 (deposit mode).
+  gl.uniform1i(gl.getUniformLocation(depositProgram, "deposit"), 1);
+  
+  // Set the point sizes.
+  gl.uniform1f(gl.getUniformLocation(depositProgram, "pointsize"), 1.0);
+  gl.uniform1f(gl.getUniformLocation(depositProgram, "dotSize"), presetArray[19]);
+  
+  // Bind the offscreen texture framebuffer.
+  gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, screenTexture, 0);
+  gl.viewport(0, 0, simSize, simSize);
+  
+  // Bind the VAO that holds your particle data (assumed to be set up with attribute "i_P").
+  gl.bindVertexArray(vaos[buffer_read + 2]); // or your designated VAO for deposit
+  
+  // Draw all particles as points.
+  gl.drawArrays(gl.POINTS, 0, numParticles);
+  
+  // Clean up: unbind framebuffer and VAO.
+  gl.bindVertexArray(null);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+}
+
 
 
 

@@ -292,4 +292,31 @@ void main() {
 }`
 
 
+const depositVSource = `#version 300 es
+precision highp float;
+in vec2 i_P;       // Particle position (in clip space)
+uniform float pointsize; // Uniform for the default point size
+uniform float dotSize;   // Uniform for the special point size (e.g. for the first particle)
+void main() {
+  // Only the very first vertex gets dotSize, all others use pointsize.
+  gl_PointSize = (gl_VertexID == 0) ? dotSize : pointsize;
+  gl_Position = vec4(i_P, 0.0, 1.0);
+}`
+
+depositFSource = `#version 300 es
+precision highp float;
+out vec4 FragColor;
+uniform float v[19]; // Array of preset parameters
+uniform int deposit; // Flag: 1 means deposit mode, 0 means render mode
+void main() {
+  // Choose the opacity: use v[14] when depositing, v[17] when rendering.
+  float opacity = (deposit == 1) ? v[14] : v[17];
+  
+  // Create a circular shape by discarding fragments outside a circle.
+  // Here, gl_PointCoord ranges from 0 to 1 across the point.
+  if (dot(gl_PointCoord - vec2(0.5), gl_PointCoord - vec2(0.5)) > 0.25)
+    discard;
+  else
+    FragColor = vec4(1.0, 1.0, 1.0, opacity);
+}`
 
