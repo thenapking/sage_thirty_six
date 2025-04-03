@@ -106,23 +106,18 @@ function setup() {
   updateParticles = create_program(updateVSource, updateFSource, updateParticlesTransforms);
 
   renderParticles = create_program(renderVSource, renderFSource);
-  updateBlur = create_program(universalVSource, blurFSource);
-  clearScreen = create_program(universalVSource, clearFSource);
-  drawScreen = create_program(universalVSource, drawFSource);
 
   setup_vaos()
   initialize_buffers();
 
   setupDebugQuad()
-  setupFadeQuad()
-  // testShader = create_program(testVSource, testFSource);
 
-  // ONLY FOR TEST SHADER
-  // gl.bindBuffer(B=gl.ARRAY_BUFFER,gl.createBuffer());
-  // gl.enableVertexAttribArray(0);
-  // gl.vertexAttribPointer(0,2,gl.BYTE,0,0,0);
-  // gl.bufferData(B,new Int8Array([-3,1,1,-3,1,1]),gl.STATIC_DRAW);
+
+
   setupTestParticlesFromExistingBuffer();
+  setupBlurQuad();
+  createBlurTexture()
+  setupClearQuad();
 }
 
 function create_particles(){
@@ -136,33 +131,22 @@ function create_particles(){
   return  new Float32Array(arr);
 }
 
-
  
-  // gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
 
 function draw() {
   t++;
   background(0);
 
   updateParticlesHelper();
-  // depositParticlesHelper();
-  // updateTestParticleBuffer(buffers[buffer_read]);
+
   drawTestParticles(numParticles);
+  applyBlur(renderSize, 0.95) 
+  applyClearFade()
 
-  // applyFade();
-  // fadeScreen();
+  drawTestOffscreenTexture()
 
-  // testFade()
-  
-
-  // drawParticlesToCanvas();
-  // debugOffscreen()
-
-  // drawCanvasToScreen();
   drawDebugParticle()
 
-  // testShaderHelper();
-  drawTestOffscreenTexture()
 
   if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) {
     console.error("Framebuffer incomplete");

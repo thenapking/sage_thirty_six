@@ -58,6 +58,11 @@ function setupTestParticlesFromExistingBuffer() {
 }
 
 function drawTestParticles(numParticles) {
+
+  gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, screenTexture, 0);
+  gl.viewport(0, 0, renderSize, renderSize);
+
   gl.useProgram(testParticleProgram);
 
   let dotSizeLoc = gl.getUniformLocation(testParticleProgram, "dotSize");
@@ -66,9 +71,12 @@ function drawTestParticles(numParticles) {
   } else {
     console.error("dotSize uniform not found.");
   }
+
+
   gl.bindVertexArray(testParticleVAO);
   gl.drawArrays(gl.POINTS, 0, numParticles);
   gl.bindVertexArray(null);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 }
 
 function setupDebugQuad() {
@@ -105,41 +113,124 @@ function setupDebugQuad() {
   gl.bindVertexArray(null);
 }
 
+let blurProgram;
+let blurVAO;
+let blurTexture;
 
-function setupFadeQuad() {
-  fadeProgram = create_program(debugVSource, debugFaderFSource);
-  // You can reuse your debug quad VAO if it’s set up for a full-screen quad.
-  // Otherwise, create one (like in setupTestQuad()).
+function createBlurTexture() {
+  blurTexture = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, blurTexture);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, renderSize, renderSize, 0, gl.RGBA, gl.FLOAT, null);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.bindTexture(gl.TEXTURE_2D, null);
 }
 
-function applyFade() {
-  // Use the fade program
-  gl.useProgram(fadeProgram);
+function setupBlurQuad() {
+  // Create the shader program for the blur effect.
+  blurProgram = create_program(testBlurVSource, testBlurFSource);
   
-  // Bind the offscreen texture as the source
+  // Create and bind a VAO for a full-screen quad.
+  blurVAO = gl.createVertexArray();
+  gl.bindVertexArray(blurVAO);
+  
+  // Define a full-screen quad with positions and texture coordinates.
+  // Positions in clip space and corresponding texture coordinates.
+  let vertices = new Float32Array([
+    // aPos       // aTexCoord
+    -1,  1,      0, 1,  // Top-left
+    -1, -1,      0, 0,  // Bottom-left
+     1,  1,      1, 1,  // Top-right
+     1, -1,      1, 0   // Bottom-right
+  ]);
+  
+  let buffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+  gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+  
+  // Set up the attribute pointers.
+  let posLoc = gl.getAttribLocation(blurProgram, "aPos");
+  gl.enableVertexAttribArray(posLoc);
+  gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 4 * Float32Array.BYTES_PER_ELEMENT, 0);
+  
+  let texCoordLoc = gl.getAttribLocation(blurProgram, "aTexCoord");
+  gl.enableVertexAttribArray(texCoordLoc);
+  gl.vertexAttribPointer(texCoordLoc, 2, gl.FLOAT, false, 4 * Float32Array.BYTES_PER_ELEMENT, 2 * Float32Array.BYTES_PER_ELEMENT);
+  
+  // Clean up bindings.
+  gl.bindBuffer(gl.ARRAY_BUFFER, null);
+  gl.bindVertexArray(null);
+}
+
+function applyBlur(renderSize, decayFactor) {
+  gl.useProgram(blurProgram);
+  
+  // Bind source texture (screenTexture) to TEXTURE0.
   gl.activeTexture(gl.TEXTURE0);
   gl.bindTexture(gl.TEXTURE_2D, screenTexture);
-  gl.uniform1i(gl.getUniformLocation(fadeProgram, "uTexture"), 0);
+  gl.uniform1i(gl.getUniformLocation(blurProgram, "uTexture"), 0);
   
-  // Set the decay factor uniform (0.95 means each pixel retains 95% of its value each frame)
-  gl.uniform1f(gl.getUniformLocation(fadeProgram, "uDecay"), 0.95);
+  // Set texture size and decay uniform.
+  gl.uniform2f(gl.getUniformLocation(blurProgram, "uTextureSize"), renderSize, renderSize);
+  gl.uniform1f(gl.getUniformLocation(blurProgram, "uDecay"), decayFactor);
   
-  // Bind the framebuffer and attach the offscreen texture as the render target.
-  // This will write the decayed result back into screenTexture.
+  // Bind the framebuffer and attach blurTexture as the color attachment.
+  gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, blurTexture, 0);
+  
+  gl.viewport(0, 0, renderSize, renderSize);
+  gl.bindVertexArray(blurVAO);
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  gl.bindVertexArray(null);
+  
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  
+  // Swap the textures: the blurred result becomes the new screenTexture.
+  let tmp = screenTexture;
+  screenTexture = blurTexture;
+  blurTexture = tmp;
+}
+
+
+let clearProgram; // Shader program for clear/fade
+
+function setupClearQuad() {
+  clearProgram = create_program(debugVSource, clearFSource);
+  // Optionally, you can reuse your existing debugVAO or set up a new one:
+  // (Assuming debugVAO is set up as a full-screen quad with attributes aPos and aTexCoord.)
+}
+
+function applyClearFade() {
+  gl.useProgram(clearProgram);
+  
+  // Set the uniform clearOpacity. We assume presetArray[18] holds the normalized value.
+  let clearOpacityLoc = gl.getUniformLocation(clearProgram, "clearOpacity");
+  if(clearOpacityLoc !== null){
+    gl.uniform1f(clearOpacityLoc, 0.1);
+  }
+  
+  // Bind the framebuffer and attach screenTexture as the render target.
   gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
   gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, screenTexture, 0);
   
-  // Set viewport to the size of the offscreen texture.
+  // Set the viewport to match your offscreen texture.
   gl.viewport(0, 0, renderSize, renderSize);
   
-  // Draw the full-screen quad.
-  // Assuming you’re using the same quad VAO as your debug/test quad:
+  // Enable blending if not already enabled.
+  gl.enable(gl.BLEND);
+  gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+  
+  // Bind your full-screen quad VAO (reuse debugVAO, for example) and draw the quad.
   gl.bindVertexArray(debugVAO);
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  gl.bindVertexArray(null);
   
-  // Unbind framebuffer to switch back to the main canvas.
+  // Unbind the framebuffer so that subsequent drawing goes to the default framebuffer.
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 }
+
 
 
 
@@ -166,52 +257,4 @@ function drawDebugParticle() {
   
 }
 
-function testFade() {
-  // Make sure the framebuffer is set up with the offscreen texture.
-  gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
-  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, screenTexture, 0);
-  
-  // Use the fade shader program.
-  gl.useProgram(fadeProgram);
-  gl.uniform1f(gl.getUniformLocation(fadeProgram, "uDecay"), 0.005);
-  
-  // Bind the offscreen texture as input.
-  gl.activeTexture(gl.TEXTURE0);
-  gl.bindTexture(gl.TEXTURE_2D, screenTexture);
-  gl.uniform1i(gl.getUniformLocation(fadeProgram, "uTexture"), 0);
-  
-  // Set the viewport to the size of the offscreen texture.
-  gl.viewport(0, 0, renderSize, renderSize);
-  
-  // Draw the full-screen quad (using your debug VAO).
-  gl.bindVertexArray(debugVAO);
-  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-  gl.bindVertexArray(null);
-  
-  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-  
-  // Log the middle pixel value.
-  logMiddlePixel();
-}
 
-function logMiddlePixel() {
-  gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
-  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, screenTexture, 0);
-  
-  let pixel = new Float32Array(4);
-  let midX = Math.floor(renderSize / 2);
-  let midY = Math.floor(renderSize / 2);
-  gl.readPixels(midX, midY, 1, 1, gl.RGBA, gl.FLOAT, pixel);
-  console.log("Middle pixel RGBA:", pixel);
-  
-  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-}
-
-
-
-function testShaderHelper() {
-  gl.uniform1f(gl.getUniformLocation(testShader,"iGlobalTime"), millis()*.001);
-  gl.uniform2f(gl.getUniformLocation(testShader,"iResolution"), renderSize, renderSize);
-  
-	gl.drawArrays(gl.TRIANGLE_FAN, 0, 3);
-}

@@ -154,13 +154,14 @@ void main() {
 }`
 
 const clearFSource = `#version 300 es
-precision highp float;
+precision mediump float;
 in vec2 vTexCoord;
-out vec4 outColor;
-uniform float[19] v;
+out vec4 fragColor;
+uniform float clearOpacity;  // Should be a normalized value in [0, 1]
 void main() {
-    outColor = vec4(0., 0., 0., v[18]);
-}`
+  fragColor = vec4(0.0, 0.0, 0.0, clearOpacity);
+}
+`
 
 const drawFSource = `#version 300 es
 precision highp float;
