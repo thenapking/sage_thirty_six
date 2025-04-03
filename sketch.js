@@ -22,27 +22,28 @@
 let agents = [];
 // Default preset values
 let currentPreset = {
-  sensorDistanceBase: 5,
+  sensorDistanceBase: 1,
   sensorDistanceExponent: 1,
-  sensorDistanceMultiplier: 1,
-  sensorAngleBase: 45,
+  sensorDistanceMultiplier: 0,
+  sensorAngleBase: 1,
   sensorAngleExponent: 1,
-  sensorAngleMultiplier: 1,
-  turnAngleBase: 15,
+  sensorAngleMultiplier: 0,
+  turnAngleBase: 1,
   turnAngleExponent: 1,
-  turnAngleMultiplier: 1,
-  speedBase: 2,
+  turnAngleMultiplier: 10,
+  speedBase: 1,
   speedExponent: 1,
-  speedpMultiplier: 1,
+  speedpMultiplier: 0,
   verticalOffset: 0,
   horizontalOffset: 0,
-  depositOpacity: 255,
+  depositOpacity: 0.5,
   trailDecayFactor: 0.95,
   blurIterationCount: 1,
-  renderOpacity: 255,
-  clearOpacity: 10,
-  particleDotSize: 3
+  renderOpacity: 0.5,
+  clearOpacity: 0.1,
+  particleDotSize: 2,
 };
+
 
 
 
@@ -51,7 +52,8 @@ let trailLayer; // Off-screen graphics buffer for trails
 
 let particleDensity = 2.7
 let simSize = 512;             // Size of the simulation texture
-let numParticles = simSize * simSize * particleDensity; // Total number of particles
+let numParticles = 1000; // Total number of particles
+let drawPointsize = 1; // Size of the points to be drawn
 let floatsPerParticle = 4;     // Example: 2 for position, 1 for age, 1 for angle
 let particleData;              // Will hold our initial particle data
 
@@ -63,44 +65,64 @@ let vaos = [];          // Array to hold VAOs
 let vao, vao_desc; // VAO descriptor
 let gl; // WebGL context
 
-let updateParticles, renderParticles; // Program for updating particles
+let updateParticles, renderParticles, updateBlur, clearScreen, drawScreen; // Program for updating particles
+let testShader;
+
+let debugProgram;
+let debugVAO;
+let fadeProgram;
+
 
 let t = 0;
 
+let renderSize = 1080; // Size of the render texture
+let screenTexture, framebuffer;
+
+let presetArray;
+
 function setup() {
-  createCanvas(800, 800, WEBGL2);
+  createCanvas(renderSize/2, renderSize/2, WEBGL2);
+
+  // numParticles = int(simSize * simSize * particleDensity);
+  numParticles = 1000
   
   gui = createGUI(currentPreset);
+  presetArray = updatePresetArray();
 
   setup_webgl();
+  screenTexture = loadOutputTexture()
+  create_textures();
+  framebuffer = gl.createFramebuffer();
 
-  
-  for (let j = 0; j < 2; j++) {
-    textures[j] = loadTexture(null);
-    buffers[j] = gl.createBuffer();
-  }
+  gl.enable(gl.BLEND);
+  gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  gl.clearColor(0, 0, 0, 0.1);
+
+  let data = new Float32Array(Array(simSize * simSize * 2).fill(0))
+  setTexture(data);
 
   let updateParticlesTransforms = ["v_P", "v_A", "v_T"];
-  updateParticles = create_program(updateParticlesTransforms);
+  updateParticles = create_program(updateVSource, updateFSource, updateParticlesTransforms);
+
+  renderParticles = create_program(renderVSource, renderFSource);
+  updateBlur = create_program(universalVSource, blurFSource);
+  clearScreen = create_program(universalVSource, clearFSource);
+  drawScreen = create_program(universalVSource, drawFSource);
 
   setup_vaos()
   initialize_buffers();
 
-  
+  setupDebugQuad()
+  setupFadeQuad()
+  // testShader = create_program(testVSource, testFSource);
 
-}
-
-
-function loadTexture(data) {
-  let tex = gl.createTexture();
-  gl.bindTexture(gl.TEXTURE_2D, tex);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RG32F, simSize, simSize, 0, gl.RG, gl.FLOAT, data);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
-  gl.bindTexture(gl.TEXTURE_2D, null);
-  return tex;
+  // ONLY FOR TEST SHADER
+  // gl.bindBuffer(B=gl.ARRAY_BUFFER,gl.createBuffer());
+  // gl.enableVertexAttribArray(0);
+  // gl.vertexAttribPointer(0,2,gl.BYTE,0,0,0);
+  // gl.bufferData(B,new Int8Array([-3,1,1,-3,1,1]),gl.STATIC_DRAW);
+  setupTestParticlesFromExistingBuffer();
 }
 
 function create_particles(){
@@ -115,84 +137,43 @@ function create_particles(){
 }
 
 
-
-function setup_webgl(){
-  c = document.getElementById("slimewebgl");
-  c.width = window.innerWidth;
-  c.height = window.innerHeight;
-
-  gl = c.getContext("webgl2");		
-}
-
-
-// this replicates the function u in Sage Jenson's code
-// this will be used for more shaders than just updateParticles
-function create_program(transformFeedbackVaryings) {
-  let program = gl.createProgram();
-
-  vertexShader = create_shader(gl.VERTEX_SHADER, vsSource)
-  fragmentShader =  create_shader(gl.FRAGMENT_SHADER, fsSource)
-
-  gl.attachShader(program, vertexShader);
-  gl.attachShader(program, fragmentShader);
-
-  if (transformFeedbackVaryings != null) {
-    gl.transformFeedbackVaryings(program, transformFeedbackVaryings, gl.INTERLEAVED_ATTRIBS);
-  }
-
-  gl.linkProgram(program);
-
-  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-    console.error(gl.getProgramInfoLog(program));
-  }
-  
-  gl.useProgram(program);
-
-  return program;
-}
-
-function create_shader(type, source) {
-  let shader = gl.createShader(type);
-  gl.shaderSource(shader, source);
-  gl.compileShader(shader);
-  if (gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-      return shader;
-  } else {
-      alert("Didn't compile shader. Info: " + gl.getShaderInfoLog(shader));
-      gl.deleteShader(shader);
-      return null;
-  }
-}
-
-
+ 
+  // gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
 
 function draw() {
   t++;
   background(0);
 
   updateParticlesHelper();
-  // drawDebugParticle()
+  // depositParticlesHelper();
+  // updateTestParticleBuffer(buffers[buffer_read]);
+  drawTestParticles(numParticles);
 
-}
+  // applyFade();
+  // fadeScreen();
 
-function drawDebugParticle() {
-  if(t%50 !== 0) return; // Only draw every 50 frames
-  // Bind the updated (read) buffer.
-  gl.bindBuffer(gl.ARRAY_BUFFER, buffers[buffer_read]);
-  let debugData = new Float32Array(4); // Assuming each particle consists of 4 floats.
-  gl.getBufferSubData(gl.ARRAY_BUFFER, 0, debugData);
-  gl.bindBuffer(gl.ARRAY_BUFFER, null);
-
-  // Log the first particle’s data (x, y, age, angle) to the console.
-  // console.log("Debug Particle Data:", debugData.slice(0, 4));
-
-  // Map the coordinates from clip space (-1 to 1) to canvas space.
-  let x = map(debugData[0], -1, 1, 0, width);
-  let y = map(debugData[1], -1, 1, 0, height);
-
-  console.log(x, y)
+  // testFade()
   
+
+  // drawParticlesToCanvas();
+  // debugOffscreen()
+
+  // drawCanvasToScreen();
+  drawDebugParticle()
+
+  // testShaderHelper();
+  drawTestOffscreenTexture()
+
+  if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) {
+    console.error("Framebuffer incomplete");
+  }
+
 }
+
+
+
+
+
 
 function updateParticlesHelper() {
   gl.enable(gl.BLEND);
@@ -205,8 +186,6 @@ function updateParticlesHelper() {
   gl.uniform1i(gl.getUniformLocation(updateParticles, "frame"), t);
   gl.uniform1i(gl.getUniformLocation(updateParticles, "pen"), 0 );
 
-
-  let presetArray = updatePresetArray();
 
   let vLoc = gl.getUniformLocation(updateParticles, "v");
   gl.uniform1fv(vLoc, presetArray);
@@ -239,6 +218,100 @@ function updateParticlesHelper() {
   buffer_read = buffer_write;
   buffer_write = temp;
 
+}
+
+function depositParticlesHelper() {
+  gl.useProgram(renderParticles);
+
+  gl.uniform1fv(gl.getUniformLocation(renderParticles, "v"), presetArray);
+  gl.uniform1i(gl.getUniformLocation(renderParticles, "deposit"), 1);
+  gl.uniform1f(gl.getUniformLocation(renderParticles, "pointsize"), 1);
+  gl.uniform1f(gl.getUniformLocation(renderParticles, "dotSize"), presetArray[19]);
+
+  gl.bindTexture(gl.TEXTURE_2D, textures[0]);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, textures[0], 0);
+
+  gl.bindVertexArray(vaos[buffer_read + 2]);
+  gl.viewport(0, 0, simSize, simSize);
+  gl.drawArrays(gl.POINTS, 0, numParticles);
+}
+
+function blurHelper() {
+  gl.disable(gl.BLEND);
+  gl.bindVertexArray(vao);
+  
+
+  let t = Math.round(presetArray[16]);
+
+  for (let j = 0; j < t; j++) {
+      gl.useProgram(updateBlur);
+      gl.uniform1fv(gl.getUniformLocation(updateBlur, "v"), presetArray);
+      gl.bindTexture(gl.TEXTURE_2D, textures[1]);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, textures[1], 0);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, textures[0]);
+      gl.uniform1i(gl.getUniformLocation(updateBlur, "uUpdateTex"), 1);
+      gl.uniform2f(gl.getUniformLocation(updateBlur, "uTextureSize"), simSize, simSize);
+      gl.viewport(0, 0, simSize, simSize);
+
+      gl.clearColor(1, 0, 0, 1);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+      // Swap textures
+      // I think this could be elsewhere and stops the feedback
+      textures = [textures[1], textures[0]];
+  }
+  gl.enable(gl.BLEND);
+}
+
+   // Draw particles to an offscreen texture.
+function drawParticlesToCanvas() {
+    gl.bindVertexArray(vaos[buffer_read + 2]);
+    gl.useProgram(renderParticles);
+    gl.uniform1fv(gl.getUniformLocation(renderParticles, "v"), presetArray);
+    gl.uniform1i(gl.getUniformLocation(renderParticles, "deposit"), 0);
+    gl.uniform1f(gl.getUniformLocation(renderParticles, "pointsize"), drawPointsize);
+    gl.uniform1f(gl.getUniformLocation(renderParticles, "dotSize"), presetArray[19]);
+    gl.bindTexture(gl.TEXTURE_2D, screenTexture);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, screenTexture, 0);
+    gl.enable(gl.BLEND);
+    gl.viewport(0, 0, renderSize, renderSize);
+    gl.drawArrays(gl.POINTS, 0, numParticles);
+    gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+}
+
+// Fade the offscreen screen texture.
+function fadeScreen() {
+    gl.useProgram(clearScreen);
+    gl.enable(gl.BLEND);
+    gl.uniform1fv(gl.getUniformLocation(clearScreen, "v"), presetArray);
+    gl.bindTexture(gl.TEXTURE_2D, screenTexture);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, screenTexture, 0);
+    gl.viewport(0, 0, renderSize, renderSize);
+    gl.bindVertexArray(vao);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+}
+
+// Draw the offscreen texture to the main canvas.
+function drawCanvasToScreen() {
+    gl.useProgram(drawScreen);
+    gl.uniform1i(gl.getUniformLocation(drawScreen, "invert"), 1);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, screenTexture);
+    gl.uniform1i(gl.getUniformLocation(drawScreen, "uDrawTex"), 0);
+    gl.viewport(0, 0, renderSize, renderSize);
+    gl.bindVertexArray(vao);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+    // this previous checked the canvas ratio - presumably this makes it landscape/portrait
+    // gl.viewport(parseInt(renderSize), 0, renderSize, renderSize);
+    gl.bindVertexArray(vao);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 }
 
  // Utility methods for getting uniform and attribute locations.

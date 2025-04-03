@@ -35,6 +35,7 @@ function createGUI(currentPreset) {
           controllers[key].setValue(newPreset[key]);
         }
       });
+      presetArray = updatePresetArray();
     });
   presetFolder.open();
 

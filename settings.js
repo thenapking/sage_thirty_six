@@ -82,8 +82,9 @@ rawPresets.forEach(row => {
 
 
 function updatePresetArray(){
-  return new Float32Array([
-    currentPreset.sensorDistanceBase,      // v[0]
+  
+  let arr = [
+    currentPreset.sensorDistanceBase,        // v[0]
     currentPreset.sensorDistanceExponent,    // v[1]
     currentPreset.sensorDistanceMultiplier,  // v[2]
     currentPreset.sensorAngleBase,           // v[3]
@@ -95,14 +96,18 @@ function updatePresetArray(){
     currentPreset.speedBase,                 // v[9]
     currentPreset.speedExponent,             // v[10]
     currentPreset.speedpMultiplier,          // v[11]
-    currentPreset.verticalOffset,            // v[12]
-    currentPreset.horizontalOffset,          // v[13]
-    currentPreset.depositOpacity,            // v[14]
-    currentPreset.trailDecayFactor,          // v[15]
-    currentPreset.blurIterationCount,        // v[16]
-    currentPreset.renderOpacity,             // v[17]
-    currentPreset.clearOpacity               // v[18]
-  ]);
+    currentPreset.verticalOffset,            // v[12] /
+    currentPreset.horizontalOffset,          // v[13] /
+    currentPreset.depositOpacity,            // v[14] /
+    currentPreset.trailDecayFactor,          // v[15] /
+    currentPreset.blurIterationCount,        // v[16] /
+    currentPreset.renderOpacity,             // v[17] /
+    currentPreset.clearOpacity,              // v[18] /
+    currentPreset.particleDotSize            // v[19] /
+  ]
+
+  console.log(arr[14], arr[17], arr[18]);
+  return arr;
 }
 
 
