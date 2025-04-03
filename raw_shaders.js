@@ -154,7 +154,7 @@ void main() {
 }`
 
 const clearFSource = `#version 300 es
-precision mediump float;
+precision highp float;
 in vec2 vTexCoord;
 out vec4 fragColor;
 uniform float clearOpacity;  // Should be a normalized value in [0, 1]
@@ -163,20 +163,22 @@ void main() {
 }
 `
 
-const drawFSource = `#version 300 es
-precision highp float;
-in vec2 vTexCoord;
-out vec4 outColor;
-uniform sampler2D uDrawTex;
-uniform int invert;
-void main() {
-    vec4 color = clamp(texture(uDrawTex, vTexCoord), 0., 1.);
-    color.a = 1.0;
-    if (invert == 1) {
-        color.xyz = vec3(1.) - color.xyz;
-    }
-    outColor = color;
-}`
+
+
+// const drawFSource = `#version 300 es
+// precision highp float;
+// in vec2 vTexCoord;
+// out vec4 outColor;
+// uniform sampler2D uDrawTex;
+// uniform int invert;
+// void main() {
+//     vec4 color = clamp(texture(uDrawTex, vTexCoord), 0., 1.);
+//     color.a = 1.0;
+//     if (invert == 1) {
+//         color.xyz = vec3(1.) - color.xyz;
+//     }
+//     outColor = color;
+// }`
 
 const universalVSource = `#version 300 es
 in vec4 aVertexPosition;
@@ -193,7 +195,7 @@ const testVSource = `#version 300 es
         in vec4 position;void main() {gl_Position =  vec4(position.xy,0.,1.);}`
 
 const testFSource =  `#version 300 es
-        precision mediump float;
+        precision highp float;
 
         uniform vec2 iResolution;
         uniform float iGlobalTime;
@@ -209,7 +211,7 @@ const testFSource =  `#version 300 es
 				}`
 
 const debugVSource = `#version 300 es
-precision mediump float;
+precision highp float;
 in vec2 position;
 in vec2 aTexCoord;
 out vec2 vTexCoord;
@@ -219,7 +221,7 @@ void main() {
 }`
 
 const debugFSource = `#version 300 es
-precision mediump float;
+precision highp float;
 in vec2 vTexCoord;
 uniform sampler2D uTexture;
 out vec4 fragColor;
@@ -228,7 +230,7 @@ void main() {
 }`
 
 const debugFaderFSource = `#version 300 es
-precision mediump float;
+precision highp float;
 in vec2 vTexCoord;
 uniform sampler2D uTexture;
 uniform float uDecay; // e.g., 0.95
@@ -240,7 +242,7 @@ void main() {
 `
 
 const testParticleVSource = `#version 300 es
-precision mediump float;
+precision highp float;
 in vec2 aPos;  // Particle position (clip space)
 uniform float dotSize;  // The size of the point
 void main() {
@@ -249,7 +251,7 @@ void main() {
 }`
 
 const testParticleFSource = `#version 300 es
-precision mediump float;
+precision highp float;
 out vec4 fragColor;
 void main() {
   // Use gl_PointCoord to create a circular point.
@@ -262,7 +264,7 @@ void main() {
 }`
 
 const testBlurFSource = `#version 300 es
-precision mediump float;
+precision highp float;
 in vec2 vTexCoord;
 uniform sampler2D uTexture;  // Input texture (the offscreen trail texture)
 uniform vec2 uTextureSize;   // Dimensions of the texture (in pixels)
@@ -282,7 +284,7 @@ void main() {
 }`
 
 const testBlurVSource = `#version 300 es
-precision mediump float;
+precision highp float;
 in vec2 aPos;      // Full-screen quad vertex position (clip space)
 in vec2 aTexCoord; // Texture coordinate
 out vec2 vTexCoord;
@@ -303,7 +305,7 @@ void main() {
   gl_Position = vec4(i_P, 0.0, 1.0);
 }`
 
-depositFSource = `#version 300 es
+const depositFSource = `#version 300 es
 precision highp float;
 out vec4 FragColor;
 uniform float v[19]; // Array of preset parameters
@@ -320,3 +322,27 @@ void main() {
     FragColor = vec4(1.0, 1.0, 1.0, opacity);
 }`
 
+const drawVSource = `#version 300 es
+precision mediump float;
+in vec2 aPos;
+in vec2 aTexCoord;
+out vec2 vTexCoord;
+void main() {
+  vTexCoord = aTexCoord;
+  gl_Position = vec4(aPos, 0.0, 1.0);
+}`
+
+const drawFSource = `#version 300 es
+precision highp float;
+in vec2 vTexCoord;
+out vec4 outColor;
+uniform sampler2D uDrawTex;
+uniform int invert;
+void main() {
+    vec4 color = clamp(texture(uDrawTex, vTexCoord), 0.0, 1.0);
+    color.a = 1.0;
+    if (invert == 1) {
+        color.xyz = vec3(1.0) - color.xyz;
+    }
+    outColor = color;
+}`

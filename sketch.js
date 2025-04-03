@@ -84,14 +84,19 @@ function setup() {
   createCanvas(renderSize/2, renderSize/2, WEBGL2);
 
   // numParticles = int(simSize * simSize * particleDensity);
-  numParticles = 1000
-  
-  gui = createGUI(currentPreset);
+  numParticles = 200000
+  currentPreset = presets.pure_multiscale
   presetArray = updatePresetArray();
+  gui = createGUI(currentPreset);
+  
 
   setup_webgl();
+
+  buffers[0] = gl.createBuffer();
+  buffers[1] = gl.createBuffer();
   screenTexture = loadOutputTexture()
-  create_textures();
+  blurTexture = createBlurTexture()
+  textures = [screenTexture, blurTexture];
   framebuffer = gl.createFramebuffer();
 
   gl.enable(gl.BLEND);
@@ -99,13 +104,11 @@ function setup() {
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   gl.clearColor(0, 0, 0, 0.1);
 
-  let data = new Float32Array(Array(simSize * simSize * 2).fill(0))
-  setTexture(data);
 
   let updateParticlesTransforms = ["v_P", "v_A", "v_T"];
   updateParticles = create_program(updateVSource, updateFSource, updateParticlesTransforms);
 
-  renderParticles = create_program(renderVSource, renderFSource);
+  renderParticles = create_program(renderVSource, renderFSource, null);
 
   depositProgram = create_program(depositVSource, depositFSource, null);
 
@@ -119,8 +122,8 @@ function setup() {
 
   setupTestParticlesFromExistingBuffer();
   setupBlurQuad();
-  createBlurTexture()
   setupClearQuad();
+  setupDrawScreenQuad();
 }
 
 function create_particles(){
@@ -141,13 +144,13 @@ function draw() {
   background(0);
 
   updateParticlesHelper();
-  depositParticlesHelper()
+  // depositParticlesHelper()
   drawTestParticles(numParticles);
-  // applyBlur(renderSize, presetArray[15]) 
+  applyBlur(renderSize, presetArray[15]) 
   applyClearFade()
 
-  drawTestOffscreenTexture()
-
+  // drawTestOffscreenTexture()
+  drawCanvasToScreen() 
   // drawDebugParticle()
 
 
@@ -233,12 +236,13 @@ function blurHelper() {
 
   for (let j = 0; j < t; j++) {
       gl.useProgram(updateBlur);
-      gl.uniform1fv(gl.getUniformLocation(updateBlur, "v"), presetArray);
       gl.bindTexture(gl.TEXTURE_2D, textures[1]);
       gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
       gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, textures[1], 0);
       gl.activeTexture(gl.TEXTURE1);
       gl.bindTexture(gl.TEXTURE_2D, textures[0]);
+
+      gl.uniform1fv(gl.getUniformLocation(updateBlur, "v"), presetArray);
       gl.uniform1i(gl.getUniformLocation(updateBlur, "uUpdateTex"), 1);
       gl.uniform2f(gl.getUniformLocation(updateBlur, "uTextureSize"), simSize, simSize);
       gl.viewport(0, 0, simSize, simSize);
@@ -284,9 +288,9 @@ function fadeScreen() {
 }
 
 // Draw the offscreen texture to the main canvas.
-function drawCanvasToScreen() {
+function drawCanvasToScreenSAGE() {
     gl.useProgram(drawScreen);
-    gl.uniform1i(gl.getUniformLocation(drawScreen, "invert"), 1);
+    gl.uniform1i(gl.getUniformLocation(drawScreen, "invert"), 0);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, screenTexture);
