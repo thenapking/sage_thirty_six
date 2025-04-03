@@ -46,69 +46,7 @@ const rawPresets = [
 [1.829, 23.65, 0.029, 0.674, 0.500, 0.000, 1.224, 1.039, 0.000, 0.029, 3.869, 0.054, 0.409, 1.519, 0.080, 0.938, 2.000, 0.065, 0.307, 18.,   'hexa1833'],
 ]
 
-const presetKeys = [
-  "sensorDistanceBase",
-  "sensorDistanceExponent",
-  "sensorDistanceMultiplier",
-  "sensorAngleBase",
-  "sensorAngleExponent",
-  "sensorAngleMultiplier",
-  "turnAngleBase",
-  "turnAngleExponent",
-  "turnAngleMultiplier",
-  "speedBase",
-  "speedExponent",
-  "speedpMultiplier",
-  "verticalOffset",
-  "horizontalOffset",
-  "depositOpacity",
-  "trailDecayFactor",
-  "blurIterationCount",
-  "renderOpacity",
-  "clearOpacity",
-  "particleDotSize"
-];
 
-let presets = {};
-rawPresets.forEach(row => {
-  // Pop the preset name from the end of the row.
-  let name = row.pop();
-  let presetObj = {};
-  presetKeys.forEach((key, index) => {
-    presetObj[key] = row[index];
-  });
-  presets[name] = presetObj;
-});
-
-
-function updatePresetArray(){
-  
-  let arr = [
-    currentPreset.sensorDistanceBase,        // v[0]
-    currentPreset.sensorDistanceExponent,    // v[1]
-    currentPreset.sensorDistanceMultiplier,  // v[2]
-    currentPreset.sensorAngleBase,           // v[3]
-    currentPreset.sensorAngleExponent,       // v[4]
-    currentPreset.sensorAngleMultiplier,     // v[5]
-    currentPreset.turnAngleBase,             // v[6]
-    currentPreset.turnAngleExponent,         // v[7]
-    currentPreset.turnAngleMultiplier,       // v[8]
-    currentPreset.speedBase,                 // v[9]
-    currentPreset.speedExponent,             // v[10]
-    currentPreset.speedpMultiplier,          // v[11]
-    currentPreset.verticalOffset,            // v[12] /
-    currentPreset.horizontalOffset,          // v[13] /
-    currentPreset.depositOpacity,            // v[14] /
-    currentPreset.trailDecayFactor,          // v[15] /
-    currentPreset.blurIterationCount,        // v[16] /
-    currentPreset.renderOpacity,             // v[17] /
-    currentPreset.clearOpacity,              // v[18] /
-    currentPreset.particleDotSize            // v[19] /
-  ]
-
-  console.log(arr[14], arr[17], arr[18]);
-  return arr;
-}
 
 
 

@@ -81,11 +81,11 @@ let screenTexture, framebuffer;
 let presetArray;
 
 function setup() {
-  createCanvas(renderSize/2, renderSize/2, WEBGL2);
+  // createCanvas(renderSize/2, renderSize/2, WEBGL2);
 
-  // numParticles = int(simSize * simSize * particleDensity);
-  numParticles = 200000
-  currentPreset = presets.pure_multiscale
+  numParticles = int(simSize * simSize * particleDensity);
+  // numParticles = 400000
+  currentPreset = presets.star_network;
   presetArray = updatePresetArray();
   gui = createGUI(currentPreset);
   
@@ -97,6 +97,7 @@ function setup() {
   screenTexture = loadOutputTexture()
   blurTexture = createBlurTexture()
   textures = [screenTexture, blurTexture];
+  
   framebuffer = gl.createFramebuffer();
 
   gl.enable(gl.BLEND);
@@ -109,14 +110,12 @@ function setup() {
   updateParticles = create_program(updateVSource, updateFSource, updateParticlesTransforms);
 
   renderParticles = create_program(renderVSource, renderFSource, null);
-
+  debugProgram = create_program(debugVSource, debugFSource);
   depositProgram = create_program(depositVSource, depositFSource, null);
 
 
   setup_vaos()
   initialize_buffers();
-
-  setupDebugQuad()
 
 
 
@@ -144,12 +143,14 @@ function draw() {
   background(0);
 
   updateParticlesHelper();
-  // depositParticlesHelper()
+
+  // THE DEPOSIT PARTICLES HELPER IS FLICKERING
+  depositParticlesHelper() //shifted by a disatnce
   drawTestParticles(numParticles);
   applyBlur(renderSize, presetArray[15]) 
   applyClearFade()
 
-  // drawTestOffscreenTexture()
+  drawTestOffscreenTexture()
   drawCanvasToScreen() 
   // drawDebugParticle()
 
@@ -163,7 +164,7 @@ function draw() {
 
 
 
-
+// checked same
 
 function updateParticlesHelper() {
   gl.enable(gl.BLEND);
@@ -173,15 +174,13 @@ function updateParticlesHelper() {
   gl.useProgram(updateParticles);
   gl.activeTexture(gl.TEXTURE0);
 
+  gl.uniform1fv(gl.getUniformLocation(updateParticles, "v"), presetArray);
   gl.uniform1i(gl.getUniformLocation(updateParticles, "frame"), t);
   gl.uniform1i(gl.getUniformLocation(updateParticles, "pen"), 0 );
 
 
-  let vLoc = gl.getUniformLocation(updateParticles, "v");
-  gl.uniform1fv(vLoc, presetArray);
-
   gl.activeTexture(gl.TEXTURE1);
-  gl.bindTexture(gl.TEXTURE_2D, textures[0]);
+  gl.bindTexture(gl.TEXTURE_2D, screenTexture);
 
   gl.uniform1i(gl.getUniformLocation(updateParticles, "u_trail"), 1);
   gl.uniform2f(gl.getUniformLocation(updateParticles, "i_dim"), simSize, simSize);
@@ -221,9 +220,9 @@ function depositParticlesHelper() {
   gl.bindTexture(gl.TEXTURE_2D, textures[0]);
   gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
   gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, textures[0], 0);
+  gl.viewport(0, 0, renderSize, renderSize);
 
   gl.bindVertexArray(vaos[buffer_read + 2]);
-  gl.viewport(0, 0, simSize, simSize);
   gl.drawArrays(gl.POINTS, 0, numParticles);
 }
 

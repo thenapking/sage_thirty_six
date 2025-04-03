@@ -305,6 +305,7 @@ void main() {
   gl_Position = vec4(i_P, 0.0, 1.0);
 }`
 
+// checked same
 const depositFSource = `#version 300 es
 precision highp float;
 out vec4 FragColor;

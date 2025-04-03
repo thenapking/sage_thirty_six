@@ -21,7 +21,7 @@ function drawTestOffscreenTexture() {
   gl.uniform1i(gl.getUniformLocation(debugProgram, "uTexture"), 0);
   
   // Bind and draw the full-screen quad
-  gl.bindVertexArray(debugVAO);
+  gl.bindVertexArray(vao);
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   gl.bindVertexArray(null);
 }
@@ -58,12 +58,13 @@ function setupTestParticlesFromExistingBuffer() {
 }
 
 function drawTestParticles(numParticles) {
+  gl.useProgram(testParticleProgram);
+
 
   gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
   gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, screenTexture, 0);
   gl.viewport(0, 0, renderSize, renderSize);
 
-  gl.useProgram(testParticleProgram);
 
 
   let dotSizeLoc = gl.getUniformLocation(testParticleProgram, "dotSize");
@@ -80,6 +81,7 @@ function drawTestParticles(numParticles) {
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 }
 
+// not used
 function setupDebugQuad() {
   debugProgram = create_program(debugVSource, debugFSource);
   
@@ -114,8 +116,9 @@ function setupDebugQuad() {
   gl.bindVertexArray(null);
 }
 
-// Checked same - only thing is VAO
+// Checked same as drawParticlesToCanvas
 function depositParticlesHelper() {
+  gl.bindVertexArray(vaos[buffer_read + 2]); // or your designated VAO for deposit
   gl.useProgram(depositProgram);
   
   // Set the deposit flag to 1 (deposit mode).
@@ -125,16 +128,17 @@ function depositParticlesHelper() {
   gl.uniform1f(gl.getUniformLocation(depositProgram, "dotSize"), presetArray[19]);
   
   // Bind the offscreen texture framebuffer.
+  gl.bindTexture(gl.TEXTURE_2D, screenTexture);
   gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
   gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, screenTexture, 0);
-  gl.viewport(0, 0, simSize, simSize);
+  gl.enable(gl.BLEND);
+  gl.viewport(0, 0, renderSize, renderSize);
   
   // Bind the VAO that holds your particle data (assumed to be set up with attribute "i_P").
-  gl.bindVertexArray(vaos[buffer_read + 2]); // or your designated VAO for deposit
+ 
   
   // Draw all particles as points.
   gl.drawArrays(gl.POINTS, 0, numParticles);
-  
   // Clean up: unbind framebuffer and VAO.
   gl.bindVertexArray(null);
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -204,23 +208,20 @@ function applyBlur(renderSize, decayFactor) {
   gl.bindTexture(gl.TEXTURE_2D, screenTexture);
 
   // Bind the framebuffer and attach blurTexture as the color attachment.
-  gl.bindTexture(gl.TEXTURE_2D, blurTexture);
+  // This makes it go red
+  // gl.bindTexture(gl.TEXTURE_2D, blurTexture);
   gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
   gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, blurTexture, 0);
   
-
   gl.uniform1i(gl.getUniformLocation(blurProgram, "uTexture"), 0);
   gl.uniform2f(gl.getUniformLocation(blurProgram, "uTextureSize"), renderSize, renderSize);
   gl.uniform1f(gl.getUniformLocation(blurProgram, "uDecay"), decayFactor);
 
   gl.viewport(0, 0, renderSize, renderSize);
 
-  
   gl.clearColor(1, 0, 0, 1);
   gl.clear(gl.COLOR_BUFFER_BIT);
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-
- 
   
   // Swap the textures: the blurred result becomes the new screenTexture.
   let tmp = screenTexture;
@@ -250,6 +251,7 @@ function applyClearFade() {
   }
   
   // Bind the framebuffer and attach screenTexture as the render target.
+  gl.bindTexture(gl.TEXTURE_2D, screenTexture);
   gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
   gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, screenTexture, 0);
   gl.viewport(0, 0, renderSize, renderSize);
@@ -257,7 +259,7 @@ function applyClearFade() {
   // Enable blending if not already enabled.
   // gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
   
-  gl.bindVertexArray(debugVAO);
+  gl.bindVertexArray(vao);
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
   gl.bindVertexArray(null);
@@ -334,7 +336,7 @@ function drawCanvasToScreen() {
   
   gl.bindVertexArray(screenQuadVAO);
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-  gl.bindVertexArray(null);
+  // gl.bindVertexArray(null);
   
 }
 

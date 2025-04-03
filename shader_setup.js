@@ -100,33 +100,7 @@ function bind_attributes(gl, bufferDesc, vao, compSize) {
   gl.bindBuffer(gl.ARRAY_BUFFER, null);
 }
 
-// not used
-function create_textures(){
-  for (let j = 0; j < 2; j++) {
-    textures[j] = loadTexture(null);
-    buffers[j] = gl.createBuffer();
-  }
-}
 
-// NOT USED
-// Update the simulation texture.
-function setTexture(data) {
-  gl.bindTexture(gl.TEXTURE_2D, textures[0]);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.R32F, simSize, simSize, 0, gl.RED, gl.FLOAT, data);
-  gl.bindTexture(gl.TEXTURE_2D, null);
-}
-
-function loadTexture(data) {
-  let tex = gl.createTexture();
-  gl.bindTexture(gl.TEXTURE_2D, tex);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RG32F, simSize, simSize, 0, gl.RG, gl.FLOAT, data);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
-  gl.bindTexture(gl.TEXTURE_2D, null);
-  return tex;
-}
 
 // Creates a framebuffer texture for drawing the screen.
 // originally createScreenFbo
@@ -165,8 +139,8 @@ function createBlurTexture() {
 
 function setup_webgl(){
   c = document.getElementById("slimewebgl");
-  c.width = renderSize/2;
-  c.height = renderSize/2;
+  c.width = renderSize;
+  c.height = renderSize;
 
   gl = c.getContext("webgl2");		
 
